@@ -36,7 +36,7 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
-public class generateIndex {
+public class GenerateIndex {
 
 	//private static String docDirPath; //= "/Users/biprade/Documents/ILS Z534 Info Retrieval/Assignment 1/Corpus/";
 	private static String indexDirPath; //= "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDir/";
