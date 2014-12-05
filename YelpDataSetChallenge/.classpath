@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry kind="lib" path="C:/eclipse-jee-juno-SR2-win32-x86_64/javaUtils/apache-commons-lang.jar"/>
+	<classpathentry kind="lib" path="C:/eclipse-jee-juno-SR2-win32-x86_64/javaUtils/mongo-java-driver-2.12.4.jar"/>
+	<classpathentry kind="lib" path="C:/eclipse-jee-juno-SR2-win32-x86_64/javaUtils/org.apache.commons.io.jar"/>
+	<classpathentry kind="lib" path="C:/lucene-4.10.0/queryparser/lucene-queryparser-4.10.0.jar"/>
+	<classpathentry kind="lib" path="C:/lucene-4.10.0/core/lucene-core-4.10.0.jar"/>
+	<classpathentry kind="lib" path="C:/lucene-4.10.0/demo/lucene-demo-4.10.0.jar"/>
+	<classpathentry kind="lib" path="C:/lucene-4.10.0/analysis/common/lucene-analyzers-common-4.10.0.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
