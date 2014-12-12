@@ -56,7 +56,7 @@ public class CategorySimiliarityComparer {
 			    if (keyB != keyA){
 			    	String valueSetB[] = mapWithSplitStrings.get(keyB);
 			    	countCommon = findCommon(valueSetA, valueSetB);			    		
-			    	if (countCommon > 6){
+			    	if (countCommon > 7){
 			    		commonSet.add(keyB);
 			    	}
 			    }

@@ -63,7 +63,7 @@ public class FeatureSetExtractorForEachBusiness {
 	String outputformat = "format=json";
 	public static void main(String[] args) throws IOException {
 		
-		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTraining/";
+		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTestTask2/";
 		System.out.println("<<<<<< :: Indexing.......................... ");
 		System.out.println(" ");
 		
@@ -104,13 +104,13 @@ public class FeatureSetExtractorForEachBusiness {
 		//Print the total number of postings for <field>TEXT</field>
 		System.out.println("Number of postings for this field: 	"+vocabulary.getSumDocFreq());
 							//store docIds as key and scores as values
-		HashMap<String,String> categoryFeatureSet = new HashMap<>();
+//		HashMap<String,String> categoryFeatureSet = new HashMap<>();
 		Double TfIdfScore;
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
-		DBCollection collection = db.getCollection("feature_set");
+		DBCollection collection = db.getCollection("feature_set_for_restaurants");
     	DBObject insertString;
 		Integer totalDocs = reader.maxDoc();
 		for(int i=0; i < totalDocs ; i++){
@@ -118,7 +118,7 @@ public class FeatureSetExtractorForEachBusiness {
 			final Terms terms = reader.getTermVector(i, "reviewsandtips");
 			Document indexDoc = searcher.doc(i);
 			if (indexDoc.get("categories")!=null){
-				if ( (indexDoc.get("categories")).matches(".*\\b(chinese|Chinese|Food|food|Mexican|mexican)\\b.*")){
+				if ( (indexDoc.get("categories")).matches(".*\\b(chinese|Chinese|Food|food|Mexican|mexican|Restaurants|American (Traditional)|Fast Food|Italian|Steakhouses|Hot Dogs|American (New)|Caribbean)\\b.*")){
 					if (terms != null && terms.size() > 0) {
 					    TermsEnum termsEnum = terms.iterator(null); // access the terms for this field
 					    BytesRef term = null;
@@ -161,10 +161,10 @@ public class FeatureSetExtractorForEachBusiness {
 							break;
 						}					
 					}					
-					categoryFeatureSet.put(indexDoc.get("category"), featureSet);
-					insertString=new BasicDBObject("category",indexDoc.get("category")).append("features",featureSet);
+//					categoryFeatureSet.put(indexDoc.get("business_id"), featureSet);
+					insertString=new BasicDBObject("business_id",indexDoc.get("business_id")).append("features",featureSet);
 					collection.insert(insertString);
-					System.out.println("Feature Set generated for :" + indexDoc.get("category"));
+					System.out.println("Feature Set generated for :" + indexDoc.get("business_id"));
 					System.out.println("Features: " + featureSet);
 				}
 			}

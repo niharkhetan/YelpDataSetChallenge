@@ -1,10 +1,12 @@
 package task1;
-
+/***
+ * @author biprade
+ * This class is used to create the training and test collections.
+ * Date : November 28th, 2014
+ */
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.lucene.util.fst.NoOutputs;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.Bytes;
@@ -15,62 +17,81 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class CreateTrainingAndTestCollections {
+	
+	private MongoClient mongoClient;
+	private DB db;
+	private DBCollection trainingCollection;
+	private DBCollection testCollection;
+	CreateTrainingAndTestCollections(MongoClient mongoClient,DB db,DBCollection trainingCollection,DBCollection testCollection)
+	{
+		this.mongoClient=mongoClient;
+		this.db=db;
+		this.trainingCollection=trainingCollection;
+		this.testCollection=testCollection;
+	}
 
 	public static void main(String args[]) throws UnknownHostException
 	{
+		//Defining required parameters to create an object of the "CreateTrainingAndTestCollections" class
+		
+		//Prepare connection to MongoDB with the YELP database
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
-		//Defining the training and test set
-//		DBCollection trainingCollection = db.getCollection("training_set");
-//		DBCollection testCollection = db.getCollection("test_set");
 		
-		DBCollection task2Collection = db.getCollection("complete_data_set");
+		//Defining the training and test set
+		DBCollection trainingCollection = db.getCollection("training_set");
+		DBCollection testCollection = db.getCollection("test_set");
+		
+		//Create Index
+		CreateTrainingAndTestCollections collectionsGenerator=new CreateTrainingAndTestCollections(mongoClient,db,trainingCollection,testCollection);
+		collectionsGenerator.createTrainingAndTestCollections(db, trainingCollection, testCollection);
+		
+		}
+/**
+ * This method is used to create the training and test collection from the YELP dataset
+ * @param db
+ * @param trainingCollection
+ * @param testCollection
+ */
+	private  void createTrainingAndTestCollections(DB db,
+			DBCollection trainingCollection, DBCollection testCollection) {
 		
 		//Using the exisitng collections to prepare the training and test set
 		DBCollection businessCollection = db.getCollection("business");
 		DBCollection reviewsCollection = db.getCollection("reviews");
 		DBCollection tipsCollection = db.getCollection("tips");
 		
+		//Declaring variables for MongoDB query operations
 		DBObject projectionString=new BasicDBObject("_id",0).append("business_id",1).append("categories",1).append("name",1);
-		DBObject reviewsProjectionString=new BasicDBObject("_id",0).append("stars",1).append("text",1);
-		DBObject tipsProjectionString=new BasicDBObject("_id",0).append("likes",1).append("text",1);
 		DBCursor businessCursor=businessCollection.find(new BasicDBObject(),projectionString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
 		DBCursor reviewsCursor;
 		DBObject reviewQueryString;
 		DBCursor tipsCursor;
 		DBObject tipsQueryString;
 		int numberOfBusinessDocumentsProcessed=0;
-		String businessName;
-		List categories;
 		String businessID;
 		DBObject businessObject;
 		DBObject reviewsObject;
 		DBObject tipsObject = null;
-		DBCursor trainingCursor;
-		DBCursor testCursor;
-		DBCursor task2Cursor;
-		DBObject queryString;
+		
+		
+		//Iterating over business collection
 		while (businessCursor.hasNext())
 		{
 			businessObject=businessCursor.next();
-			queryString=new BasicDBObject("business_id",(String)businessObject.get("business_id"));
-			//trainingCursor=trainingCollection.find(queryString);
-			//testCursor=testCollection.find(queryString);
-//			if((!trainingCursor.hasNext())&&(!testCursor.hasNext()))
-//			{
-//			businessName=(String) businessObject.get("name");
-//			categories=(List)businessObject.get("categories");
-//			businessID=(String)businessObject.get("business_id");
+			
+			
+			//Added business collection's data to the BSON Object
+			DBObject document=new BasicDBObject(businessObject.toMap());
+			
+			
+			businessID=(String)businessObject.get("business_id");
 			List reviews = new ArrayList();
 			List reviewStars = new ArrayList();
 			List tips = new ArrayList();
 			List tipsLikes = new ArrayList();
-			//Added business collection data to the BSON Object
-			DBObject document=new BasicDBObject(businessObject.toMap());
-			
-			//Adding reviews  data to the BSON Object
-			reviewQueryString=new BasicDBObject("business_id",(String)businessObject.get("business_id"));
-			reviewsCursor=reviewsCollection.find(reviewQueryString,reviewsProjectionString);
+			reviewQueryString=new BasicDBObject("business_id",businessID);
+			reviewsCursor=reviewsCollection.find(reviewQueryString);
 			while (reviewsCursor.hasNext())
 			{
 				reviewsObject=reviewsCursor.next();
@@ -81,13 +102,13 @@ public class CreateTrainingAndTestCollections {
 					reviewStars.add((int)reviewsObject.get("stars"));
 				
 			}
-			
+			//Adding reviews collection's data to the BSON Object
 			document.put("reviews",reviews );
 			document.put("reviewStars", reviewStars);
 			
-			//Adding tips data to the BSON Object
+			
 			tipsQueryString=new BasicDBObject("business_id",(String)businessObject.get("business_id"));
-			tipsCursor=tipsCollection.find(tipsQueryString,tipsProjectionString);
+			tipsCursor=tipsCollection.find(tipsQueryString);
 			while (tipsCursor.hasNext())
 			{
 				tipsObject=tipsCursor.next();
@@ -98,31 +119,30 @@ public class CreateTrainingAndTestCollections {
 					tipsLikes.add((int)tipsObject.get("likes"));
 				
 			}
-			
+			//Adding tips collection's data to the BSON Object
 			document.put("tips",tips );
 			document.put("tipsLikes", tipsLikes);
 			
-			
-//			if (numberOfBusinessDocumentsProcessed<=25292)
-//			{	
-//				
-//				trainingCollection.insert(document);
-//				numberOfBusinessDocumentsProcessed++;
-//				System.out.println("Training "+ businessObject.get("business_id"));
-//				
-//			}
-//			else
-//			{
-				
-				task2Collection.insert(document);
+			//60% of the total data i.e. 25292 documents goes in the training collection and the rest in test collection
+			if (numberOfBusinessDocumentsProcessed<=25292)
+			{	
+				//Adding data to training collection
+				trainingCollection.insert(document);
 				numberOfBusinessDocumentsProcessed++;
-				System.out.println(numberOfBusinessDocumentsProcessed);
-			//}
+				
+				
+			}
+			else
+			{
+				//Adding data to test collection
+				testCollection.insert(document);
+				numberOfBusinessDocumentsProcessed++;
+				
+			}
 			
-		//}
-		
 		}
+	}
 	}
 	
 	
-}
+

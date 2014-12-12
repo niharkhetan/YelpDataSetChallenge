@@ -103,7 +103,7 @@ public class FeatureSetExtractor {
 		//Print the total number of postings for <field>TEXT</field>
 		System.out.println("Number of postings for this field: 	"+vocabulary.getSumDocFreq());
 							//store docIds as key and scores as values
-		HashMap<String,String> categoryFeatureSet = new HashMap<>();
+//		HashMap<String,String> categoryFeatureSet = new HashMap<>();
 		Double TfIdfScore;
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
@@ -153,7 +153,7 @@ public class FeatureSetExtractor {
 				}					
 			}
 			Document indexDoc = searcher.doc(i);
-			categoryFeatureSet.put(indexDoc.get("category"), featureSet);
+//			categoryFeatureSet.put(indexDoc.get("category"), featureSet);
 			insertString=new BasicDBObject("category",indexDoc.get("category")).append("features",featureSet);
 			collection.insert(insertString);
 			System.out.println("Feature Set generated for :" + indexDoc.get("category"));

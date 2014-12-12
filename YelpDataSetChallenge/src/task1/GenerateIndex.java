@@ -1,13 +1,14 @@
 package task1;
 /**
  * @author Bipra De
- * This code indexes the documents in the corpus using StandardAnalyzer and outputs the desired results
- * Date : October 4th, 2014
+ * This code creates indexes on training and test data for TASK 1
+ * Date : November 30th, 2014
  */
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 
@@ -38,22 +39,34 @@ import com.mongodb.MongoClient;
 
 public class GenerateIndex {
 
-	//private static String docDirPath; //= "/Users/biprade/Documents/ILS Z534 Info Retrieval/Assignment 1/Corpus/";
-	private static String indexDirPath; //= "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDir/";
-	//private static File docDir;
-	private static File indexDir;
-	private static File indexDirTest;
-	private static MongoClient mongoClient;
-	private static DB db;
+	
+	//private  File indexDirTest;
+	private  MongoClient mongoClient;
+	private  DB db;
+	
+	GenerateIndex(MongoClient mongoClient,DB db) throws UnknownHostException
+	 {
+			this.mongoClient = mongoClient;
+			this.db = db;
+	 }
 	public static void main(String[] args) throws CorruptIndexException,
 			LockObtainFailedException, IOException
-			 {
-
-			indexDir=new File("/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTraining/");
-			indexDirTest=new File("/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTest/");
-			//Calling the index creation method 
-			//indexCreationForTrainingSet(new EnglishAnalyzer());
-			indexCreationForTestSet(new EnglishAnalyzer());
+	 {
+			
+			//Prepare connection to MongoDB with the YELP database
+			MongoClient mongoClient=new MongoClient( "localhost" , 27017 );
+			DB db=mongoClient.getDB( "yelp" );
+			
+			//Create index on Training data set
+			//Path to create the lucene training index directory
+			File indexDir=new File("/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTraining/");
+			GenerateIndex indexGenerator=new GenerateIndex(mongoClient,db);
+			indexGenerator.createTrainingIndex(indexDir,new EnglishAnalyzer());
+			
+			//Create index on Test data set
+			//Path to create the lucene training index directory
+			indexDir=new File("/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTest/");
+			indexGenerator.createTestIndex(indexDir,new EnglishAnalyzer());
 
 			
 	}
@@ -61,13 +74,13 @@ public class GenerateIndex {
 	
 	
 /**
- * Method to Index the training documents in a corpus
- * @param analyzer
+ * Method to create index for training data set
+ * @param index directory path, analyzer
  * @throws IOException
  * @throws FileNotFoundException
  */
  
-	private static void  indexCreationForTrainingSet(Analyzer analyzer) throws IOException,
+	private void  createTrainingIndex(File indexDir,Analyzer analyzer) throws IOException,
 			FileNotFoundException {
 				
 		//Creating and Initializing IndexWriter
@@ -76,72 +89,69 @@ public class GenerateIndex {
 		Directory fileSystemDirectory = FSDirectory.open(indexDir);
 		IndexWriter writer = new IndexWriter(fileSystemDirectory, indexWriterConfig);
 		
-		//MongoDB connection
-		mongoClient = new MongoClient( "localhost" , 27017 );
-		db = mongoClient.getDB( "yelp" );
+		//MongoDB training collection name
 		DBCollection collection = db.getCollection("training_set");
+		
+		//Preparing Query to fetch all the reviews and tips of each category
 		DBObject projectionString=new BasicDBObject("_id",0).append("reviews",1).append("tips",1);
-		DBObject filterCategoriesQueryString;
-		List<String> categoriesList = (List<String>)collection.distinct("categories");
-		categoriesList.removeAll(Collections.singleton(null));
-		//System.out.println(categoriesList);
+		DBObject fetchCategoriesQueryString;
 		DBCursor cursor = null;
 		DBObject result;
-		int count=0;
+		
+		//Query to fetch all the distinct categories from the training data set and eliminating all null categories
+		List<String> categoriesList = (List<String>)collection.distinct("categories");
+		categoriesList.removeAll(Collections.singleton(null));
+		
+		
+		
+		
 		String reviewsAndTips="";
-try{	
-		for (String category:categoriesList)
-		{
-			
-			//String tips="";
-			
-				//System.out.println("BINGO");
-				filterCategoriesQueryString=new BasicDBObject("categories",category);
-				cursor=collection.find(filterCategoriesQueryString,projectionString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
-				Document luceneDoc = new Document();
-				luceneDoc.add(new StringField("category",category, Store.YES));
-				while(cursor.hasNext())
+		try{	
+				for (String category:categoriesList)
 				{
-					result=cursor.next();
-					reviewsAndTips=result.get("reviews").toString()+result.get("tips").toString();
 					
-					
-				
-				reviewsAndTips=reviewsAndTips.replace("[", "").replace("]","");
-				//System.out.println(reviewsAndTips);
-				
-				
-				
-				if (reviewsAndTips != ""){
-					
-						FieldType type = new FieldType();
-						type.setIndexed(true);
-						type.setStored(true);
-						type.setStoreTermVectors(true);
-						Field field = new Field("reviewsandtips", reviewsAndTips, type);
-						luceneDoc.add(field);								
+						fetchCategoriesQueryString=new BasicDBObject("categories",category);
+						cursor=collection.find(fetchCategoriesQueryString,projectionString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
 						
-					
-				
-				
+						//Creating a lucene document
+						Document luceneDoc = new Document();
+						//Adding category field to the lucene document
+						luceneDoc.add(new StringField("category",category, Store.YES));
+						
+						//Iterating over query results i.e. all reviews and tips for a given category
+						while(cursor.hasNext())
+						{
+								//Preparing a concatenated string of all reviews and tips of a category
+								result=cursor.next();
+								reviewsAndTips=result.get("reviews").toString()+result.get("tips").toString();
+								reviewsAndTips=reviewsAndTips.replace("[", "").replace("]","");	
+								
+								//Adding reviewsandtips field to the lucene document
+								if (reviewsAndTips != "")
+								{
+									
+										FieldType type = new FieldType();
+										type.setIndexed(true);
+										type.setStored(true);
+										type.setStoreTermVectors(true);
+										Field field = new Field("reviewsandtips", reviewsAndTips, type);
+										luceneDoc.add(field);								
+								
+								}
+						}
+						//Write the lucene document to the index
+						writer.addDocument(luceneDoc);
 				
 				}
-			}
-				//continue;
-				writer.addDocument(luceneDoc);
-			//System.out.println(category);
-
-		System.out.println(++count);
-		System.out.println(category);
-		}
+				
+		  }
 		
-		}
 		finally
-			{cursor.close();
-			
-		 	writer.forceMerge(1);
-			writer.commit();
-			writer.close();
+			{
+					cursor.close();
+					writer.forceMerge(1);
+					writer.commit();
+					writer.close();
 			}
 	}
 		
@@ -149,89 +159,89 @@ try{
 
 
 /**
- * Method to Index the test documents in a corpus
- * @param analyzer
+ * Method to create index for the test data set
+ * @param index directory path, analyzer
  * @throws IOException
  * @throws FileNotFoundException
  */
  
-	private static void  indexCreationForTestSet(Analyzer analyzer) throws IOException,
+	private  void  createTestIndex(File indexDir,Analyzer analyzer) throws IOException,
 			FileNotFoundException {
 				
 		//Creating and Initializing IndexWriter
 		IndexWriterConfig indexWriterConfig = new IndexWriterConfig(Version.LUCENE_4_10_1,analyzer);
 		indexWriterConfig.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-		Directory fileSystemDirectory = FSDirectory.open(indexDirTest);
+		Directory fileSystemDirectory = FSDirectory.open(indexDir);
 		IndexWriter writer = new IndexWriter(fileSystemDirectory, indexWriterConfig);
 		
-		//MongoDB connection
-		mongoClient = new MongoClient( "localhost" , 27017 );
-		db = mongoClient.getDB( "yelp" );
+		//MongoDB test collection name
 		DBCollection collection = db.getCollection("test_set");
+		
+		//Preparing Query to fetch all the documents from the test collectio
 		DBObject projectionString=new BasicDBObject("_id",0);
 		DBObject queryString=new BasicDBObject();
-//		List<String> categoriesList = (List<String>)collection.distinct("categories");
-//		categoriesList.removeAll(Collections.singleton(null));
-		//System.out.println(categoriesList);
 		DBCursor cursor = collection.find(queryString,projectionString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
-		
 		DBObject result;
+		
+		//Declaring variables to store field values from the query result
 		String businessID;
-		//String categories;
 		List categories;
 		String businessName;
 		List reviews;
 		List reviewStars;
 		List tips;
 		List tipsLikes;
-		int count=0;
 		
-try{	
-		while (cursor.hasNext())
-		{
-			result=cursor.next();
-			Document luceneDoc = new Document();
-			String reviewsAndTips="";
-			businessID=result.get("business_id").toString();
-			luceneDoc.add(new StringField("business_id",businessID, Store.YES));
-			
-			businessName=result.get("name").toString();
-			luceneDoc.add(new StringField("business_name",businessName, Store.YES));
-			
-//			categories=result.get("categories").toString().replaceAll("[\\[\\]\"]", "");
-			
-			categories=(List)result.get("categories");
-			for (Object category:categories)
-				luceneDoc.add(new StringField("categories",category.toString(), Store.YES));
-			
-			reviews=(List)result.get("reviews");
-			for (Object review:reviews)
-				reviewsAndTips+=review.toString();
-			
-//			reviewStars=(List)result.get("reviewStars");
-//			for (Object stars:reviewStars)
-//				luceneDoc.add(new StringField("review stars",stars.toString(), Store.YES));
-			
-			tips=(List)result.get("tips");
-			for (Object tip:tips)
-				reviewsAndTips+=tip.toString();
-			
-//			tipsLikes=(List)result.get("tipsLikes");
-//			for (Object likes:tipsLikes)
-//				luceneDoc.add(new StringField("tips likes",likes.toString(), Store.YES));
-			luceneDoc.add(new TextField("reviewsandtips",reviewsAndTips, Store.YES));
-			writer.addDocument(luceneDoc);
-			System.out.println(++count);
-			
-		}
 		
-		}
+		try{	
+			//Iterating over query results
+				while (cursor.hasNext())
+				{
+					result=cursor.next();
+					//Creating a lucene document
+					Document luceneDoc = new Document();
+					
+					//Adding fields to the lucene document
+					businessID=result.get("business_id").toString();
+					luceneDoc.add(new StringField("business_id",businessID, Store.YES));
+					
+					businessName=result.get("name").toString();
+					luceneDoc.add(new StringField("business_name",businessName, Store.YES));
+					
+					String reviewsAndTips="";
+					categories=(List)result.get("categories");
+					for (Object category:categories)
+					{
+						luceneDoc.add(new StringField("categories",category.toString(), Store.YES));
+					}
+					
+					//Preparing a concatenated string of reviews and tips for each business ID
+					reviews=(List)result.get("reviews");
+					
+					for (Object review:reviews)
+					{
+						reviewsAndTips+=review.toString();
+					}
+		
+					tips=(List)result.get("tips");
+					for (Object tip:tips)
+					{
+						reviewsAndTips+=tip.toString();
+					}
+					
+					luceneDoc.add(new TextField("reviewsandtips",reviewsAndTips, Store.YES));
+					// Write the lucene document to the index
+					writer.addDocument(luceneDoc);
+					
+					
+				}
+		
+		  }
 		finally
-			{cursor.close();
-			
-		 	writer.forceMerge(1);
-			writer.commit();
-			writer.close();
+			{		cursor.close();
+					writer.forceMerge(1);
+					writer.commit();
+					writer.close();								
 			}
 		}
 		
