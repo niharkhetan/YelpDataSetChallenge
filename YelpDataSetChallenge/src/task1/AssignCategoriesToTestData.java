@@ -1,6 +1,6 @@
 package task1;
 /**
- * @author Bipra De
+ * @author Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
  * This code assigns programmatically computed categories to the test data
  * Date : December 4th, 2014
  */

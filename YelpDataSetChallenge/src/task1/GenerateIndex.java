@@ -38,7 +38,6 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class GenerateIndex {
-
 	
 	//private  File indexDirTest;
 	private  MongoClient mongoClient;
@@ -71,8 +70,6 @@ public class GenerateIndex {
 			
 	}
 
-	
-	
 /**
  * Method to create index for training data set
  * @param index directory path, analyzer
@@ -100,10 +97,7 @@ public class GenerateIndex {
 		
 		//Query to fetch all the distinct categories from the training data set and eliminating all null categories
 		List<String> categoriesList = (List<String>)collection.distinct("categories");
-		categoriesList.removeAll(Collections.singleton(null));
-		
-		
-		
+		categoriesList.removeAll(Collections.singleton(null));		
 		
 		String reviewsAndTips="";
 		try{	
@@ -140,10 +134,8 @@ public class GenerateIndex {
 								}
 						}
 						//Write the lucene document to the index
-						writer.addDocument(luceneDoc);
-				
-				}
-				
+						writer.addDocument(luceneDoc);				
+				}				
 		  }
 		
 		finally
@@ -154,9 +146,6 @@ public class GenerateIndex {
 					writer.close();
 			}
 	}
-		
-	
-
 
 /**
  * Method to create index for the test data set
@@ -190,8 +179,7 @@ public class GenerateIndex {
 		List reviews;
 		List reviewStars;
 		List tips;
-		List tipsLikes;
-		
+		List tipsLikes;		
 		
 		try{	
 			//Iterating over query results
@@ -231,11 +219,8 @@ public class GenerateIndex {
 					
 					luceneDoc.add(new TextField("reviewsandtips",reviewsAndTips, Store.YES));
 					// Write the lucene document to the index
-					writer.addDocument(luceneDoc);
-					
-					
-				}
-		
+					writer.addDocument(luceneDoc);					
+				}		
 		  }
 		finally
 			{		cursor.close();
@@ -243,7 +228,6 @@ public class GenerateIndex {
 					writer.commit();
 					writer.close();								
 			}
-		}
-		
+		}		
 	}
 

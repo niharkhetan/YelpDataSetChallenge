@@ -1,6 +1,6 @@
 package task1;
 /***
- * @author biprade
+ * @author Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
  * This class is used to create the training and test collections.
  * Date : November 28th, 2014
  */

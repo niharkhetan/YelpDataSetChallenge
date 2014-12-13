@@ -6,10 +6,10 @@ package task1;
  * @created on: 26th November, 2014
  * 
  * This Class reads through lucene index of Training Data
- * It iterates over each  categoriy, finds tf-idf to get top n features.
+ * It iterates over each  category, finds tf-idf to get top n features.
  * n is a parameter here which can vary
  * Creates a mongoDB collection 'feature_set' which contains extracted features of all unique categories
- * multiple filters are applied for feature set preprocessing before adding it to feature_set dictionery
+ * multiple filters are applied for feature set pre-processing before adding it to feature_set dictionary
  * 
  * 
  * */
@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocsEnum;
@@ -39,7 +38,6 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -73,7 +71,7 @@ public class FeatureSetExtractor {
 	 * @throws IOException
 	 * 
 	 * Reads Indexed directory
-	 * Do feature set pre processing
+	 * Do feature set pre-processing
 	 * Prepares MongoDB object to add to feature_set collection
 	 * Dumps it to yelp database
 	 * 
@@ -91,10 +89,13 @@ public class FeatureSetExtractor {
 		Double TfIdfScore;
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
+		// connecting to mongoDB on local port
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
 		DBCollection collection = db.getCollection("feature_set");
     	DBObject insertString;
+    	
+    	// iterating over index to get feature set for each unique category
 		Integer totalDocs = reader.maxDoc();
 		for(int i=0; i < totalDocs ; i++){
 			HashMap<String,Double> termTfIdfScore = new HashMap<>();
@@ -105,7 +106,11 @@ public class FeatureSetExtractor {
 			    while ((term = termsEnum.next()) != null) {// explore the terms for this field
 			        DocsEnum docsEnum = termsEnum.docs(null, null); // enumerate through documents, in this case only one
 			        int docIdEnum;
-			        
+			        // filter1: searches for numbers
+			        // filter2: searches for website names
+			        // filter3: searches for words ending with 's
+			        // filter4: searches for words with dot
+			        // filter5: searches for one or two letter words specifically  
 			        while ((docIdEnum = docsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
 				          TfIdfScore = ((docsEnum.freq()^2))*(Math.log10(totalDocs/reader.docFreq(new Term("reviewsandtips", term.utf8ToString()))));
 				          //check if numbers exist in features

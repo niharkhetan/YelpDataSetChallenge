@@ -3,7 +3,7 @@ package task1;
 
 
 	/**
-	 * @author Bipra De
+	 * @author Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
 	 * This code compares the performance of various retrieval and ranking algorithms
 	 * and outputs top 1000 results for short queries (<title> content) and long queries(<desc> content) in separate file.
 	 * Date : October 25th, 2014
@@ -46,15 +46,10 @@ import com.mongodb.MongoClient;
 		public static void main(String[] args) throws ParseException, IOException
 		{
 			// Taking Index Directory path as input from the user
-//			Scanner input=new Scanner(System.in);  // /Users/biprade/Documents/ILS Z534 Info Retrieval/Assignment 2/IndexDir/
-//			System.out.println("Enter Index Directory Path \n");
-			pathToIndex="/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTest/";
-			
-			
-			
-			outputDirectoryPath="/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/";
-			
-			
+			// Scanner input=new Scanner(System.in);  // /Users/biprade/Documents/ILS Z534 Info Retrieval/Assignment 2/IndexDir/
+			// System.out.println("Enter Index Directory Path \n");
+			pathToIndex="/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTest/";			
+			outputDirectoryPath="/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/";			
 			
 			//Comparing various retrieval and ranking algorithms
 			System.out.println("********Comparing BM25,Dirichlet Smoothing*******\n ");
@@ -64,14 +59,10 @@ import com.mongodb.MongoClient;
 			CategorySimiliarityComparer groupCategories=new CategorySimiliarityComparer();
 			groupedCategories=groupCategories.returnGroupedCollections();
 			compareAlgorithms.compareSearchAlgorithms("BM25",new BM25Similarity());
-			System.out.println("output file created for BM25\n");
-			
-			
-			
+			System.out.println("output file created for BM25\n");			
+// 			Uncomment code below to run for DirichletSmoothing			
 //			compareAlgorithms.compareSearchAlgorithms("DirichletSmoothing",new LMDirichletSimilarity());
-//			System.out.println("output file created for Dirichlet Smoothing\n");
-			
-			
+//			System.out.println("output file created for Dirichlet Smoothing\n");			
 			
 			System.out.println("Categories Assigned!!!!");
 			
@@ -103,11 +94,7 @@ import com.mongodb.MongoClient;
 			 */
 //			PrintWriter QueryFile = new PrintWriter(outputDirectoryPath+algoName+"output.txt", "UTF-8"); // "/Users/biprade/Documents/ILS Z534 Info Retrieval/Assignment 2/"
 //			
-//			QueryFile.println("Business ID \t\t Category \t\t Rank \t\t Score \t\t AlgoName ");
-			
-
-			
-			
+//			QueryFile.println("Business ID \t\t Category \t\t Rank \t\t Score \t\t AlgoName ");			
 			
 			String queryString;
 			MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
@@ -130,9 +117,7 @@ import com.mongodb.MongoClient;
 				query=(String) result.get("features");
 				searchAndRetrieveDocs(searcher, parser, query,outputCollection,outputCursor,outputResult,outputQueryString,category,algoName);
 			
-				}
-			
-			
+				}			
 			
 			//Closing the IndexReader and PrintWriters
 			reader.close();
@@ -140,7 +125,10 @@ import com.mongodb.MongoClient;
 //			QueryFile.close();
 			
 		}
-
+		/**
+		 * @param : String s
+		 * 
+		 * */
 		public static String removeDuplicates(String s) {
 		    return new LinkedHashSet<String>(Arrays.asList(s.split(","))).toString().replaceAll("(^\\[|\\]$)", "");
 		}

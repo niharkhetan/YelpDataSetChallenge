@@ -1,10 +1,23 @@
 package task1;
 
+/*
+ * CategorySimilarityComparer.java
+ * @author: Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
+ * 
+ * @created on: 26th November, 2014
+ * 
+ * This class reads through categories extracted and their uniqe feature set from mongoDB
+ * It iterates over each  category, find the common features depending upon threshold set in code 
+ * 		for eg: 70% threshold means that categories have 70 percent features similar to each other 
+ * 
+ * Categories which are similar depending on threshold are grouped together
+ * 
+ * */
+
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -14,14 +27,19 @@ import com.mongodb.MongoClient;
 
 
 public class CategorySimiliarityComparer {
-
-
-
+	/**
+	 * @param : none
+	 * @return: grouped hashMap for similar categories 
+	 * 			key: Category Name
+	 * 			value: Array List of similar categories
+	 * 
+	 * */
 	public  HashMap<String, ArrayList<String>> returnGroupedCollections() throws UnknownHostException {
 		HashMap<String,String> categoryFeatureSet = new HashMap<>();
 		HashMap<String, String[]> mapWithSplitStrings = new HashMap<>();
 		HashMap<String, ArrayList<String>> groupings = new HashMap<>();
 		
+		// Connecting to mongoDB to read stored feature set for each unique category
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
 		DBCollection featureCollection = db.getCollection("feature_set");
@@ -33,13 +51,6 @@ public class CategorySimiliarityComparer {
 			result=cursor.next();
 			categoryFeatureSet.put(result.get("category").toString(),result.get("features").toString());
 		}
-		
-		
-//		categoryFeatureSet.put("Chinese", "soup noodles pan asian manchow pad thai rice cuisine padthad");
-//		categoryFeatureSet.put("Thai", "soup noodles lomo dalai bhutto gama rice cuisine padthad");
-//		categoryFeatureSet.put("Indonese", "soup noodles lomo dalai bhutto ppop corns danmein pojo kims");
-//		categoryFeatureSet.put("Indian", "dosa indli sambhar chicken paratha pulav paneer kheer rasgulla mithai");
-//		categoryFeatureSet.put("Kashmiri", "sambhar chicken paratha pulav paneer khus podam roganjosh cuisine padthad");
 		
 		for (String key : categoryFeatureSet.keySet()) {
 		    String value = categoryFeatureSet.get(key);
@@ -63,13 +74,14 @@ public class CategorySimiliarityComparer {
 			}
 		    groupings.put(keyA,commonSet);
 		}
-		
-//		for (String key : groupings.keySet()){
-//			System.out.println("Key = " + key + ", Value = " + groupings.get(key));
-//		}
 		return groupings;
 	}
 	
+	/**
+	 * @param :String[] listA, String[] listB
+	 * @return: Integer: that is intersection count of two lists
+	 * 
+	 * */
 	public  Integer findCommon(String[] listA, String[] listB){
 		String arrayToHash[] = listA;
 		String arrayToSearch[] = listB;
