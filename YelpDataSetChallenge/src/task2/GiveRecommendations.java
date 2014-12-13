@@ -1,5 +1,10 @@
 package task2;
 
+/**
+ * @author Bipra De
+ * This code computes the recommended and non-recommended menu items of restaurants
+ * Date : December 5th, 2014
+ */
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -15,16 +20,63 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class GiveRecommendations {
+	
+	private MongoClient mongoClient;
+	private DB db;
+	private DBCollection featureCollection;
+	private DBCollection businessCollection;
+	private DBCollection testCollection;
+	private DBCollection trainingCollection;
+	
+	GiveRecommendations(MongoClient mongoClient,DB db,DBCollection featureCollection,DBCollection businessCollection,DBCollection testCollection,DBCollection trainingCollection)
+	{
+		this.mongoClient=mongoClient;
+		this.db=db;
+		this.featureCollection=featureCollection;
+		this.businessCollection=businessCollection;
+		this.testCollection=testCollection;
+		this.trainingCollection=trainingCollection;
+		
+	}
 
 	public static void main(String[] args) throws IOException
 	{
 		
+		//Defining required parameters to create an object of the "GiveRecommendations" class
+		
+		//Prepare connection to MongoDB with the YELP database
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
+		
+		//"feature_set_for_restaurants" collection stores the top N features for each business belonging to Restaurant categories
 		DBCollection featureCollection = db.getCollection("feature_set_for_restaurants");
+		
+		//"business" collection stores the business data provided in the yelp data set. 
 		DBCollection businessCollection = db.getCollection("business");
+		
+		//"test_set" is the training collection (40% of total data) and "training_set" is the training collection (60% of total data)
 		DBCollection testCollection = db.getCollection("test_set");
 		DBCollection trainingCollection = db.getCollection("training_set");
+		
+		GiveRecommendations computeRecommendations=new GiveRecommendations(mongoClient,db,featureCollection,businessCollection,testCollection,trainingCollection);
+		computeRecommendations.computeRecommendedAndNonRecommendedMenuItems(featureCollection,
+				businessCollection, testCollection, trainingCollection);	
+	}
+
+	/***
+	 * This method computes the recommended and not recommended menu items for restaurants based on POS tagging(extracting Nouns) and  Sentiment Analysis
+	 * @param featureCollection
+	 * @param businessCollection
+	 * @param testCollection
+	 * @param trainingCollection
+	 * @throws IOException
+	 */
+	private  void computeRecommendedAndNonRecommendedMenuItems(
+			DBCollection featureCollection, DBCollection businessCollection,
+			DBCollection testCollection, DBCollection trainingCollection)
+			throws IOException {
+		
+		//Declaring the variables required for MongoDB query operations
 		DBObject queryString=new BasicDBObject();
 		DBCursor featureCursor=featureCollection.find(queryString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
 		DBObject featureResult;
@@ -38,31 +90,36 @@ public class GiveRecommendations {
 		String businessID;
 		String features;
 		String[] featureList;
-		String reviewsAndTips = "";
 		List reviews;
 		List tips;
-		HashMap<String,String> recommendationData=new HashMap<String,String>();
+		DBObject result;
 		
+		String reviewsAndTips = "";
+		
+		
+		//Declaring the variables required to compute the recommended and not recommended menu items
+		HashMap<String,String> recommendationData=new HashMap<String,String>();
 		float sentimentIntensity;
 		int sentimentVote;
 		String[] recommendationDataValues;
 		String positiveMenuItem;
 		String negativeMenuItem;
 		MenuFinder menuInformation=new MenuFinder();
-		DBObject result;
+		
+		//Iterate over the documents in the "feature_set_for_restaurants" collection
 		while (featureCursor.hasNext())
 		{
-			positiveMenuItem="";
-			negativeMenuItem="";
-			featureResult=featureCursor.next();
-			businessID=(String) featureResult.get("business_id");
-			//if(businessID.equals("RgDg-k9S5YD_BaxMckifkg")||businessID.equals("cruBFtsFaBuhX_I72uU8pA")||businessID.equals("xoc5751bEHVpWauIhUjbfQ")||businessID.equals("JwUE5GmEO-sH1FuwJgKBlQ")||businessID.equals("uGykseHzyS5xAMWoN6YUqA")||businessID.equals("LRKJF43s9-3jG9Lgx4zODg")||businessID.equals("rdAdANPNOcvUtoFgcaY9KA")||businessID.equals("zOc8lbjViUZajbY7M0aUCQ")|| businessID.equals("UgjVZTSOaYoEvws_lAP_Dw")||businessID.equals("suQyHycqv8nA7EualcUB3g")||businessID.equals("sCWO7Up6mjgbDNE6Wtd0wA")||businessID.equals("WcTu6LJsXa-tfRxAWzbopw")||businessID.equals("_wZTYYL7cutanzAnJUTGMA")||businessID.equals("SKLw05kEIlZcpTD5pqma8Q")||businessID.equals("77ESrCo7hQ96VpCWWdvoxg")||businessID.equals("KTqNU4plO23583DYAMGXYg")||businessID.equals("MKsb2VpLB-0UBODcInDsSw")||businessID.equals("ShEYKerTwb2LSORE5o_s7A")||businessID.equals("HaBkx5PwvbBpQ2iNCgHnVQ"))
-				//{
-					features=((String) featureResult.get("features")).trim();
-				featureList=features.split(" "); //pass this list to Saurabh's code
+				positiveMenuItem="";
+				negativeMenuItem="";
+				featureResult=featureCursor.next();
+				businessID=(String) featureResult.get("business_id");
+				features=((String) featureResult.get("features")).trim();
+				featureList=features.split(" "); 
 				
 				trainingQueryString=new BasicDBObject("business_id",businessID);
 				trainingCursor=trainingCollection.find(trainingQueryString).addOption(Bytes.QUERYOPTION_NOTIMEOUT);
+				
+				//Prepare concatenated string of reviews and tips of a business from training/test collection wherever it is present 
 				if(trainingCursor.hasNext())
 				{
 					result=trainingCursor.next();
@@ -88,33 +145,43 @@ public class GiveRecommendations {
 							reviewsAndTips+=tip.toString();
 					}
 				}
-				//Pass reviewsAndTips to Saurabh's code as string
-				recommendationData=menuInformation.getMenu(reviewsAndTips,Arrays.asList(featureList));
-				//Call Saurabh's code with the features to get the sentiment scores for each features.
 				
+				
+				
+				//Pass reviewsAndTips to the "getMenu" method of "MenuFinder" class to extract the menu items along with their sentiment intensity and sentiment score
+				recommendationData=menuInformation.getMenu(reviewsAndTips,Arrays.asList(featureList));
+				
+				//Iterating over each entry in the HashMap<String,String> returned by the "MenuFinder" class
 				for(String menuItem:recommendationData.keySet())
 				{
 				
 					recommendationDataValues=recommendationData.get(menuItem).split(" : ");
-				
-				
-				if (Integer.parseInt(recommendationDataValues[1])>0)
-					positiveMenuItem+=menuItem+" [ Sentiment Intensity: "+recommendationDataValues[0]+", Sentiment Score: "+recommendationDataValues[1]+" ], ";
-				if (Integer.parseInt(recommendationDataValues[1])<0)
-					negativeMenuItem+=menuItem+" [ Sentiment Score: "+recommendationDataValues[0]+", Sentiment Score: "+recommendationDataValues[1]+" ], ";
+					
+					//If the sentiment score is +ve then classify the menu item as "Recommended"
+					if (Integer.parseInt(recommendationDataValues[1])>0)
+					{
+						positiveMenuItem+=menuItem+" [ Sentiment Intensity: "+recommendationDataValues[0]+", Sentiment Score: "+recommendationDataValues[1]+" ], ";
+					}
+					//If the sentiment score is -ve then classify the menu item as "Not Recommended"
+					if (Integer.parseInt(recommendationDataValues[1])<0)
+					{
+						negativeMenuItem+=menuItem+" [ Sentiment Score: "+recommendationDataValues[0]+", Sentiment Score: "+recommendationDataValues[1]+" ], ";
+					
+					}
 				}
 				positiveMenuItem=positiveMenuItem.replaceAll(",$", "");
 				negativeMenuItem=negativeMenuItem.replaceAll(",$", "");
 				
+				//Update the "business" collection with the recommended and not-recommended menu items
 				searchString=new BasicDBObject("business_id",businessID);
 				updateValue=new BasicDBObject("recommended_menu_tiems",positiveMenuItem).append("not_recommended_menu_items",negativeMenuItem);
 				updateString=new BasicDBObject("$set",updateValue);
 				businessCollection.update(searchString, updateString);
 				reviewsAndTips="";
-				System.out.println("HELLO "+businessID);
 				
-			//}
-		}	
+				
+			
+		}
 	}
 
 

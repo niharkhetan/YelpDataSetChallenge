@@ -1,6 +1,6 @@
 package task2;
 /**
- * @author Bipra De
+ * @author Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
  * This code creates lucene index for the complete YELP data set for Task 2
  * Date : December 1st, 2014
  */
@@ -10,7 +10,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
-
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -25,7 +24,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.Version;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.Bytes;
 import com.mongodb.DB;
@@ -57,11 +55,6 @@ public class GenerateTask2Index {
 						indexGenerator.createIndex(indexDir,new StandardAnalyzer());	
 			
 	}
-
-	
-	
-
-
 
 /**
  * Method to create lucene index for the entire YELP data set

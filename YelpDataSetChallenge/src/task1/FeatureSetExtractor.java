@@ -110,7 +110,8 @@ public class FeatureSetExtractor {
 			        // filter2: searches for website names
 			        // filter3: searches for words ending with 's
 			        // filter4: searches for words with dot
-			        // filter5: searches for one or two letter words specifically  
+			        // filter5: searches for one or two letter words specifically
+			        // filter6: searches for words like aaaaaaa lolololo mapmapmapmap which has repeating sequences in it
 			        while ((docIdEnum = docsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
 				          TfIdfScore = ((docsEnum.freq()^2))*(Math.log10(totalDocs/reader.docFreq(new Term("reviewsandtips", term.utf8ToString()))));
 				          //check if numbers exist in features

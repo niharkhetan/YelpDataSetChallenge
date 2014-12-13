@@ -1,11 +1,19 @@
 package task2;
 /*
- * indexComparison.java
- * @author: Nihar Khetan
- * @username: nkhetan
- * @created on: 3rd October, 2014
+ * indexCompFeatureSetExtractorForEachBusiness.java
+ * @author: Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
  * 
- * This program indexes the given corpus AP89 using StandardAnalyzer then reads the index
+ * @created on: 26th November, 2014
+ * 
+ * This Class reads through lucene index of full dataset
+ * It iterates over each  business and its review and tips, finds tf-idf to get top n features.
+ * n is a parameter here which can vary
+ * Creates a mongoDB collection 'feature_set' which contains extracted features of businesses defined by a filter:
+ * 		filter: as in this task only with respect to restaurants so specific categories has to be defined for businesses for 
+ * 				which feature set need to be extracted. For eg: restaurant | food | mexican | chinese | thai 
+ * 
+ * multiple filters are applied for feature set pre-processing before adding it to feature_set dictionary for businesses * 
+ * 
  * */
 
 import java.io.File;
@@ -21,7 +29,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocsEnum;
@@ -34,16 +41,13 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
-
 public class FeatureSetExtractorForEachBusiness {
-
 	/**
 	 * @param args
 	 * @throws IOException 
@@ -52,72 +56,45 @@ public class FeatureSetExtractorForEachBusiness {
 	 * Creates the index for given corpus and then reads the indexed corpus
 	 * 
 	 * INDEX path: 
-	 * CHANGE indexPath = "<PATH ON YOUR MACHINE WHERE YOU WANT INDEX FILES TO BE STRORED>"
-	 * 
-	 * CORPUS path:
-	 * CHANGE baseFolder = "<PATH OF CORPUS ON YOUR MACHINE>"
+	 * CHANGE indexPath = "<PATH ON YOUR MACHINE WHERE YOU WANT INDEX FILES IS STRORED>"	
 	 */
-	String protocol = "http";
-	String baseurl = "en.wikipedia.org";
-	//String service url = "/w/api.php?action=query&list=search&srsearch=";
-	String outputformat = "format=json";
+	
 	public static void main(String[] args) throws IOException {
 		
-		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTestTask2/";
-		System.out.println("<<<<<< :: Indexing.......................... ");
-		System.out.println(" ");
-		
-		indexReaderFunction(indexPath);	
-		
+		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTestTask2/";		
+		indexReaderFunction(indexPath);			
 	}
-
 	
 	/*
 	 * @param String indexPath
 	 * @throws IOException
 	 *  
-	 * Reads Indexed directory
+	 * Reads Indexed directory and iterates over all businesses and their review and tips
 	 * 
 	 * */
 	private static void indexReaderFunction(String indexPath) throws IOException{
 		IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(indexPath)));
-		
-		//Print the total number of documents in the corpus
-		System.out.println("Total number of documents in the corpus: "+reader.maxDoc());
-		
-		//Print the number of documents containing the term "new" in <field>TEXT</field>. 
-		System.out.println("Number of documents containing the term \"new\" for field \"TEXT\": "+reader.docFreq(new Term("reviewsandtips", "new")));
-		
-		//Print the total number of occurrences of the term "new" across all documents for <field>TEXT</field>.
-		System.out.println("Number of occurences of \"new\" in the field \"TEXT\": "+reader.totalTermFreq(new Term("reviewsandtips","new")));
+
 		Terms vocabulary = MultiFields.getTerms(reader, "reviewsandtips");
-		
-		//Print the size of the vocabulary for <field>content</field>, only available per-segment.
-		System.out.println("Size of the vocabulary for this field: "+vocabulary.size());
-		
-		//Print the total number of documents that have at least one term for <field>TEXT</field>
-		System.out.println("Number of documents that have at least one term for this field: "+vocabulary.getDocCount());
-		
-		//Print the total number of tokens for <field>TEXT</field>
-		System.out.println("Number of tokens for this field: "+vocabulary.getSumTotalTermFreq());
-		
-		//Print the total number of postings for <field>TEXT</field>
-		System.out.println("Number of postings for this field: 	"+vocabulary.getSumDocFreq());
-							//store docIds as key and scores as values
-//		HashMap<String,String> categoryFeatureSet = new HashMap<>();
+
 		Double TfIdfScore;
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
+		// connecting to mongoDB on local port
 		MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
 		DB db = mongoClient.getDB( "yelp" );
 		DBCollection collection = db.getCollection("feature_set_for_restaurants");
     	DBObject insertString;
+    	
+    	// iterating over index to get feature set for each business
 		Integer totalDocs = reader.maxDoc();
 		for(int i=0; i < totalDocs ; i++){
 			HashMap<String,Double> termTfIdfScore = new HashMap<>();
 			final Terms terms = reader.getTermVector(i, "reviewsandtips");
 			Document indexDoc = searcher.doc(i);
 			if (indexDoc.get("categories")!=null){
+				
+				// To add more restaurants simply add category names to regular expression below
 				if ( (indexDoc.get("categories")).matches(".*\\b(chinese|Chinese|Food|food|Mexican|mexican|Restaurants|American (Traditional)|Fast Food|Italian|Steakhouses|Hot Dogs|American (New)|Caribbean)\\b.*")){
 					if (terms != null && terms.size() > 0) {
 					    TermsEnum termsEnum = terms.iterator(null); // access the terms for this field
@@ -127,7 +104,16 @@ public class FeatureSetExtractorForEachBusiness {
 					        int docIdEnum;
 					        while ((docIdEnum = docsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
 						          TfIdfScore = ((docsEnum.freq()))*(Math.log10(totalDocs/reader.docFreq(new Term("reviewsandtips", term.utf8ToString()))));
-						          //check if numbers exist in features
+						          //filters applied below for pre processing
+						          // filter1 : searches for numbers
+						          // filter2 : searches for website names
+						          // filter3 : searches for words ending with 's
+						          // filter4 : searches for words with dot. for eg: tiny.world
+						          // filter5 : searches for one or two letter words specifically  
+						          // filter6 : searches for words like aaaaaaa lolololo mapmapmapmap which has repeating sequences in it
+						          // filter7 : filters terms in category or business (check function comments for more detail)
+						          // filter8 : lemmatizer for business name to feature sets
+						          // filter9 : lemmatizer for business name to feature sets
 						          if ((term.utf8ToString().matches(".*\\d.*")) || 							
 						        		  (term.utf8ToString().matches(".*.*\\b(www.|.com)\\b.*.*")) ||
 						        		  (term.utf8ToString().matches(".*'s.*")) ||
@@ -139,7 +125,8 @@ public class FeatureSetExtractorForEachBusiness {
 						        		  sCharlemmatizer1(indexDoc.get("business_name"),term.utf8ToString())){
 						        	  	  // do nothing
 						          }
-						          else{				        	 
+						          else{	
+						        	  // filter to check if feature set has lemmatized form of words already added to feature set
 						        	  if( !featureSetFilterOnCharS(termTfIdfScore, term.utf8ToString())){
 						        		  termTfIdfScore.put(term.utf8ToString(), TfIdfScore);
 						        	  }				        	  
@@ -152,16 +139,14 @@ public class FeatureSetExtractorForEachBusiness {
 					Integer count = 0;
 					String featureSet = "";
 					for (Map.Entry<String, Double> entity: sortedTfIdfScore.entrySet()){
-						if (count != 10){											
-							//System.out.println(entity.getKey()+ "\t:\t" + entity.getValue());	
+						if (count != 10){						
 							featureSet = featureSet + " " + entity.getKey();
 							count = count + 1;
 						}
 						else{
 							break;
 						}					
-					}					
-//					categoryFeatureSet.put(indexDoc.get("business_id"), featureSet);
+					}								
 					insertString=new BasicDBObject("business_id",indexDoc.get("business_id")).append("features",featureSet);
 					collection.insert(insertString);
 					System.out.println("Feature Set generated for :" + indexDoc.get("business_id"));
@@ -172,6 +157,13 @@ public class FeatureSetExtractorForEachBusiness {
 		reader.close();
 	}
 	
+	/**
+	 * @param : Map<String, Double> unsortMap : a Map which has to be sorted on keys
+	 * @return: Map<String, Double> : sortedMap 
+	 * 
+	 * Function sorts a map on keys and returns the sorted map
+	 * 
+	 */	
 	private static Map<String, Double> sortByComparator(Map<String, Double> unsortMap) {
 		 
 		// Convert Map to List
@@ -194,6 +186,15 @@ public class FeatureSetExtractorForEachBusiness {
 		return sortedMap;
 	}
 	
+	/**
+	 * @param : String stringToMatch: checkString 
+	 * @return: boolean
+	 * 
+	 * Function checks if string has words like: aaaaaa, bobobobobo 
+	 * which have 2 or more repeating characters or bunch of characters
+	 * 
+	 */
+	
 	private static boolean filterRepeatingChars(String stringToMatch){
 		Pattern p = Pattern.compile("(\\w\\w)\\1+");
 		Matcher m = p.matcher(stringToMatch);
@@ -205,6 +206,15 @@ public class FeatureSetExtractorForEachBusiness {
 			return false;		
 		}
 	}
+	
+	/**
+	 * @param : String Category, String Business, String term
+	 * @return: boolean
+	 * 
+	 * Function checks if term is present in Category name or Business name
+	 * it also check is lemmatized form of word exist or not 
+	 * for eg: term : cullar; then it check for both cullar's and cullars
+	 */
 	
 	public static boolean isTermInCategoryOrBusiness(String Category, String Business, String term){
 		if (Category==null) Category = "";
@@ -218,7 +228,17 @@ public class FeatureSetExtractorForEachBusiness {
 		
 		return false;		
 	}
-
+	
+	/**
+	 * @param : String Business, String term
+	 * @return: boolean
+	 * 
+	 * Function checks is term, is present in business
+	 * it also check is lemmatized form of wrod exist or not 
+	 * for eg: term : cullar; then it check for both cullar's and cullars
+	 * 
+	 */
+	
 	public static boolean sCharlemmatizer(String Business, String term){
 		if (Business==null) return false;
 		String[] businessTerms = Business.split(" ");
@@ -229,6 +249,15 @@ public class FeatureSetExtractorForEachBusiness {
 		}		
 		return false;		
 	}
+	
+	/**
+	 * @param : String Business, String term
+	 * @return: boolean
+	 * 
+	 * Function checks if inverse lemmatized form of term, is present in business
+	 * for eg: term: cullars then it checks for cullar in business name
+	 * 
+	 */
 	
 	public static boolean sCharlemmatizer1(String Business, String term){
 		String[] businessTerms = Business.split(" ");
@@ -245,6 +274,14 @@ public class FeatureSetExtractorForEachBusiness {
 		}		
 		return false;		
 	}
+	
+	/**
+	 * @param : HashMap<String, Double> temTfIdfScore, String newFeature
+	 * @return: boolean
+	 * 
+	 * checks if lemma of the term exists in feature set hashmap which is already created	
+	 * 
+	 */
 	
 	public static Boolean featureSetFilterOnCharS(HashMap<String, Double> temTfIdfScore, String newFeature){
 		Set<String> TfIdfKeySet = temTfIdfScore.keySet(); 
@@ -263,6 +300,13 @@ public class FeatureSetExtractorForEachBusiness {
 		}
 		return doesItMatch;
 	}
+	
+	/**
+	 * @param : String stringToMatch: String smallStr, String bigStr
+	 * @return : boolean
+	 * Function checks if two strings entered as arguements only differ on their lemma that is 's'
+	 * 
+	 */
 	
 	public static Boolean str1GreaterThanStr2(String smallStr, String bigStr ){
 		Integer Flag = 0;
