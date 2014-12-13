@@ -1,11 +1,17 @@
 package task1;
 /*
  * indexComparison.java
- * @author: Nihar Khetan
- * @username: nkhetan
- * @created on: 3rd October, 2014
+ * @author: Bipra De, Nihar Khetan, Satvik Shetty, Anand Saurabh
  * 
- * This program indexes the given corpus AP89 using StandardAnalyzer then reads the index
+ * @created on: 26th November, 2014
+ * 
+ * This Class reads through lucene index of Training Data
+ * It iterates over each  categoriy, finds tf-idf to get top n features.
+ * n is a parameter here which can vary
+ * Creates a mongoDB collection 'feature_set' which contains extracted features of all unique categories
+ * multiple filters are applied for feature set preprocessing before adding it to feature_set dictionery
+ * 
+ * 
  * */
 
 import java.io.File;
@@ -46,64 +52,42 @@ public class FeatureSetExtractor {
 	/**
 	 * @param args
 	 * @throws IOException 
-	 * Main function: 	Calls indexWriterFunction
-	 * 					Calls indexReaderFunctoin
-	 * Creates the index for given corpus and then reads the indexed corpus
+	 * Main function: 	Calls indexReaderFunctoin
+	 *
 	 * 
 	 * INDEX path: 
-	 * CHANGE indexPath = "<PATH ON YOUR MACHINE WHERE YOU WANT INDEX FILES TO BE STRORED>"
+	 * CHANGE indexPath = "<PATH ON YOUR MACHINE WHERE YOU WANT INDEX FILES TO BE STORED>"
 	 * 
-	 * CORPUS path:
-	 * CHANGE baseFolder = "<PATH OF CORPUS ON YOUR MACHINE>"
+	 *
 	 */
-	String protocol = "http";
-	String baseurl = "en.wikipedia.org";
-	//String service url = "/w/api.php?action=query&list=search&srsearch=";
-	String outputformat = "format=json";
 	public static void main(String[] args) throws IOException {
 		
-		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTraining/";
-		System.out.println("<<<<<< :: Indexing.......................... ");
-		System.out.println(" ");
-		
+		String indexPath = "/Users/biprade/Documents/ILS Z534 Info Retrieval/Final_Project/IndexDirTraining/";		
+		//read Lucene index
 		indexReaderFunction(indexPath);	
 		
 	}
-
 	
-	/*
-	 * @param String indexPath
+	/**
+	 * @param String indexPath: path to lucene index on local machine
 	 * @throws IOException
-	 *  
-	 * Reads Indexed directory
 	 * 
-	 * */
+	 * Reads Indexed directory
+	 * Do feature set pre processing
+	 * Prepares MongoDB object to add to feature_set collection
+	 * Dumps it to yelp database
+	 * 
+	 * Result: Feature set dictionery is created in yelp database as a collection
+	 * 
+	 */
 	private static void indexReaderFunction(String indexPath) throws IOException{
 		IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(indexPath)));
 		
 		//Print the total number of documents in the corpus
-		System.out.println("Total number of documents in the corpus: "+reader.maxDoc());
+		System.out.println("Total number of documents in the corpus: "+reader.maxDoc());		
 		
-		//Print the number of documents containing the term "new" in <field>TEXT</field>. 
-		System.out.println("Number of documents containing the term \"new\" for field \"TEXT\": "+reader.docFreq(new Term("reviewsandtips", "new")));
-		
-		//Print the total number of occurrences of the term "new" across all documents for <field>TEXT</field>.
-		System.out.println("Number of occurences of \"new\" in the field \"TEXT\": "+reader.totalTermFreq(new Term("reviewsandtips","new")));
 		Terms vocabulary = MultiFields.getTerms(reader, "reviewsandtips");
 		
-		//Print the size of the vocabulary for <field>content</field>, only available per-segment.
-		System.out.println("Size of the vocabulary for this field: "+vocabulary.size());
-		
-		//Print the total number of documents that have at least one term for <field>TEXT</field>
-		System.out.println("Number of documents that have at least one term for this field: "+vocabulary.getDocCount());
-		
-		//Print the total number of tokens for <field>TEXT</field>
-		System.out.println("Number of tokens for this field: "+vocabulary.getSumTotalTermFreq());
-		
-		//Print the total number of postings for <field>TEXT</field>
-		System.out.println("Number of postings for this field: 	"+vocabulary.getSumDocFreq());
-							//store docIds as key and scores as values
-//		HashMap<String,String> categoryFeatureSet = new HashMap<>();
 		Double TfIdfScore;
 		IndexSearcher searcher = new IndexSearcher(reader);
 		
@@ -121,6 +105,7 @@ public class FeatureSetExtractor {
 			    while ((term = termsEnum.next()) != null) {// explore the terms for this field
 			        DocsEnum docsEnum = termsEnum.docs(null, null); // enumerate through documents, in this case only one
 			        int docIdEnum;
+			        
 			        while ((docIdEnum = docsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
 				          TfIdfScore = ((docsEnum.freq()^2))*(Math.log10(totalDocs/reader.docFreq(new Term("reviewsandtips", term.utf8ToString()))));
 				          //check if numbers exist in features
@@ -143,8 +128,7 @@ public class FeatureSetExtractor {
 			Integer count = 0;
 			String featureSet = "";
 			for (Map.Entry<String, Double> entity: sortedTfIdfScore.entrySet()){
-				if (count != 10){											
-					//System.out.println(entity.getKey()+ "\t:\t" + entity.getValue());	
+				if (count != 10){
 					featureSet = featureSet + " " + entity.getKey();
 					count = count + 1;
 				}
@@ -153,17 +137,21 @@ public class FeatureSetExtractor {
 				}					
 			}
 			Document indexDoc = searcher.doc(i);
-//			categoryFeatureSet.put(indexDoc.get("category"), featureSet);
 			insertString=new BasicDBObject("category",indexDoc.get("category")).append("features",featureSet);
 			collection.insert(insertString);
 			System.out.println("Feature Set generated for :" + indexDoc.get("category"));
 			System.out.println("Features: " + featureSet);
-		}
-		//System.out.println(categoryFeatureSet);
-		
+		}		
 		reader.close();
 	}
 	
+	/**
+	 * @param : Map<String, Double> unsortMap : a Map which has to be sorted on keys
+	 * @return: Map<String, Double> : sortedMap 
+	 * 
+	 * Function sorts a map on keys and returns the sorted map
+	 * 
+	 */
 	private static Map<String, Double> sortByComparator(Map<String, Double> unsortMap) {
 		 
 		// Convert Map to List
@@ -186,6 +174,14 @@ public class FeatureSetExtractor {
 		return sortedMap;
 	}
 	
+	/**
+	 * @param : String stringToMatch: checkString 
+	 * @return: boolean
+	 * 
+	 * Function checks if string has words like: aaaaaa, bobobobobo 
+	 * which have 2 or more repeating characters or bunch of characters
+	 * 
+	 */
 	private static boolean filterRepeatingChars(String stringToMatch){
 		Pattern p = Pattern.compile("(\\w\\w)\\1+");
 		Matcher m = p.matcher(stringToMatch);
